@@ -2,76 +2,88 @@
 
 ## Scenario
 
-Bạn cần xây dựng một research assistant có thể nhận câu hỏi dài, tìm thông tin, phân tích và viết câu trả lời cuối cùng. Lab yêu cầu so sánh hai cách làm:
+This project builds a research assistant that can receive a query, collect sources, analyze the evidence, and write a final answer. The lab compares two approaches:
 
-1. **Single-agent baseline**: một agent làm toàn bộ.
-2. **Multi-agent workflow**: Supervisor điều phối Researcher, Analyst, Writer.
+1. **Single-agent baseline**: one Gemini call answers the full query directly.
+2. **Multi-agent workflow**: Supervisor routes Researcher, Analyst, and Writer through shared state.
 
-## Quy tắc quan trọng
+## Important Rules
 
-- Không thêm agent nếu không có lý do rõ ràng.
-- Mỗi agent phải có responsibility riêng.
-- Shared state phải đủ rõ để debug.
-- Phải có trace hoặc log cho từng bước.
-- Phải benchmark, không chỉ nhìn output bằng cảm tính.
+- Keep each agent role clear and narrow.
+- Store handoff data in `ResearchState` so the run is debuggable.
+- Trace every routing and worker step.
+- Benchmark the result instead of judging only by a nice-looking answer.
+- Keep API keys in `.env`; never hard-code them in source files.
 
 ## Milestone 1: Baseline
 
-File gợi ý:
+Implemented in:
 
 - `src/multi_agent_research_lab/cli.py`
 - `src/multi_agent_research_lab/services/llm_client.py`
 
-TODO(student): thay baseline placeholder bằng một call LLM thật.
+The baseline command calls Gemini directly and records token metadata in `agent_results`.
+
+```bash
+python -m multi_agent_research_lab.cli baseline --query "Giai thich ngan gon multi-agent system la gi"
+```
 
 ## Milestone 2: Supervisor
 
-File gợi ý:
+Implemented in:
 
 - `src/multi_agent_research_lab/agents/supervisor.py`
 - `src/multi_agent_research_lab/graph/workflow.py`
 
-TODO(student): implement routing policy.
+Routing policy:
 
-Gợi ý câu hỏi thiết kế:
+```text
+researcher -> analyst -> writer -> done
+```
 
-- Khi nào gọi Researcher?
-- Khi nào gọi Analyst?
-- Khi nào gọi Writer?
-- Khi nào stop?
-- Nếu agent fail thì retry hay fallback?
+The supervisor checks missing state fields and records every route in `route_history`.
 
-## Milestone 3: Worker agents
+## Milestone 3: Worker Agents
 
-File gợi ý:
+Implemented in:
 
-- `agents/researcher.py`
-- `agents/analyst.py`
-- `agents/writer.py`
+- `src/multi_agent_research_lab/agents/researcher.py`
+- `src/multi_agent_research_lab/agents/analyst.py`
+- `src/multi_agent_research_lab/agents/writer.py`
 
-TODO(student): implement từng worker.
+Researcher uses Tavily sources when available, Analyst structures reasoning, and Writer creates the final Vietnamese answer with citations.
 
-## Milestone 4: Trace và benchmark
+## Milestone 4: Trace And Benchmark
 
-File gợi ý:
+Implemented in:
 
-- `observability/tracing.py`
-- `evaluation/benchmark.py`
-- `evaluation/report.py`
+- `src/multi_agent_research_lab/evaluation/benchmark.py`
+- `src/multi_agent_research_lab/evaluation/report.py`
+- `src/multi_agent_research_lab/services/storage.py`
 
-Benchmark tối thiểu:
+Run:
 
-| Metric | Cách đo gợi ý |
+```bash
+python -m multi_agent_research_lab.cli benchmark --query "Research GraphRAG state-of-the-art and write a 500-word summary"
+```
+
+Outputs:
+
+- `reports/benchmark_report.md`
+- `reports/traces/baseline.json`
+- `reports/traces/multi_agent.json`
+
+Metrics:
+
+| Metric | How it is measured |
 |---|---|
-| Latency | wall-clock time |
-| Cost | token usage hoặc provider usage |
-| Quality | rubric 0-10 do peer review |
-| Citation coverage | số claims có source / tổng claims chính |
-| Failure rate | số query fail / tổng query |
+| Latency | Wall-clock time |
+| Cost | Estimated from input/output token metadata |
+| Quality | Deterministic 0-10 heuristic for lab comparison |
+| Citation coverage | Cited source markers divided by source count |
+| Failure rate | Errors recorded in state |
 
-## Exit ticket
+## Exit Ticket
 
-Mỗi nhóm trả lời 2 câu:
-
-1. Case nào nên dùng multi-agent? Vì sao?
-2. Case nào không nên dùng multi-agent? Vì sao?
+1. Use multi-agent when the task needs source collection, explicit reasoning, handoff traceability, and a final answer with citations.
+2. Avoid multi-agent for very short, low-risk tasks where orchestration overhead is larger than the benefit.

@@ -1,20 +1,18 @@
-# Lab 20: Multi-Agent Research System Starter
+# Lab 20: Multi-Agent Research System
 
-Starter repo cho bài lab **Multi-Agent Systems**: xây dựng hệ thống nghiên cứu gồm **Supervisor + Researcher + Analyst + Writer** và benchmark với single-agent baseline.
+This repo implements a multi-agent research assistant with **Supervisor + Researcher + Analyst + Writer** and a single-agent Gemini baseline for comparison.
 
-> Mục tiêu của repo này là cung cấp **production-grade skeleton** để học viên phát triển code cá nhân. Các phần logic quan trọng được để ở dạng `TODO` để học viên tự triển khai.
+## Learning Outcomes
 
-## Learning outcomes
+After the lab, the project demonstrates:
 
-Sau 2 giờ lab, học viên cần có thể:
+1. Clear roles for multiple agents.
+2. Shared state for handoff and debugging.
+3. Guardrails: max iterations, timeout, fallback, and validation.
+4. Traceable workflow execution.
+5. Benchmark comparison between single-agent and multi-agent runs.
 
-1. Thiết kế role rõ ràng cho nhiều agent.
-2. Xây dựng shared state đủ thông tin cho handoff.
-3. Thêm guardrail tối thiểu: max iterations, timeout, retry/fallback, validation.
-4. Trace được luồng chạy và giải thích agent nào làm gì.
-5. Benchmark single-agent vs multi-agent theo quality, latency, cost.
-
-## Architecture mục tiêu
+## Architecture
 
 ```text
 User Query
@@ -29,128 +27,148 @@ Supervisor / Router
 Trace + Benchmark Report
 ```
 
-## Cấu trúc repo
+## Repository Structure
 
 ```text
 .
 ├── src/multi_agent_research_lab/
-│   ├── agents/              # Agent interfaces + skeletons
+│   ├── agents/              # Supervisor, Researcher, Analyst, Writer, Critic
 │   ├── core/                # Config, state, schemas, errors
-│   ├── graph/               # LangGraph workflow skeleton
-│   ├── services/            # LLM, search, storage clients
-│   ├── evaluation/          # Benchmark/evaluation skeleton
-│   ├── observability/       # Logging/tracing hooks
+│   ├── graph/               # Lightweight workflow runner
+│   ├── services/            # Gemini LLM, Tavily search, artifact storage
+│   ├── evaluation/          # Benchmark and markdown report rendering
+│   ├── observability/       # Logging and local tracing hooks
 │   └── cli.py               # CLI entrypoint
-├── configs/                 # YAML configs for lab variants
-├── docs/                    # Lab guide, rubric, design notes
-├── tests/                   # Unit tests for skeleton behavior
-├── notebooks/               # Optional notebook entrypoint
-├── scripts/                 # Helper scripts
-├── .env.example             # Environment variables template
-├── pyproject.toml           # Python project config
-├── Dockerfile               # Containerized dev/runtime
-└── Makefile                 # Common commands
+├── configs/
+├── docs/
+├── reports/                 # Benchmark report and trace exports
+├── tests/
+├── .env.example
+├── pyproject.toml
+└── Makefile
 ```
 
 ## Quickstart
 
-### 1. Tạo môi trường
+### 1. Create Environment
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
-pip install -e "[dev]"
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e ".[llm,dev]"
 cp .env.example .env
 ```
 
-### 2. Cấu hình API keys
+### 2. Configure API Keys
 
-Mở `.env` và điền key cần thiết.
+Open `.env` and fill in your keys.
 
-```bash
-OPENAI_API_KEY=...
-# optional
+```env
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-3.1-flash-lite
+
+# Optional tracing/search providers
 LANGSMITH_API_KEY=...
+LANGSMITH_PROJECT=multi-agent-research-lab
+LANGFUSE_PUBLIC_KEY=...
+LANGFUSE_SECRET_KEY=...
+LANGFUSE_HOST=https://cloud.langfuse.com
 TAVILY_API_KEY=...
 ```
 
-### 3. Chạy smoke test
+No API key is hard-coded in source files.
+
+### 3. Run Smoke Tests
 
 ```bash
-make test
+python -m pytest
 python -m multi_agent_research_lab.cli --help
 ```
 
-### 4. Chạy baseline skeleton
+### 4. Run Single-Agent Baseline
 
 ```bash
 python -m multi_agent_research_lab.cli baseline \
   --query "Research GraphRAG state-of-the-art and write a 500-word summary"
 ```
 
-Lệnh này chỉ chạy khung baseline tối giản. Học viên cần tự triển khai logic LLM thực tế trong `src/multi_agent_research_lab/services/llm_client.py`.
-
-### 5. Chạy multi-agent skeleton
+### 5. Run Multi-Agent Workflow
 
 ```bash
 python -m multi_agent_research_lab.cli multi-agent \
   --query "Research GraphRAG state-of-the-art and write a 500-word summary"
 ```
 
-Mặc định lệnh sẽ báo các `TODO` cần làm. Đây là chủ đích của starter repo.
+The expected route is:
 
-## Milestones trong 2 giờ lab
-
-| Thời lượng | Milestone | File gợi ý |
-|---:|---|---|
-| 0-15' | Setup, chạy baseline skeleton | `cli.py`, `services/llm_client.py` |
-| 15-45' | Build Supervisor / router | `agents/supervisor.py`, `graph/workflow.py` |
-| 45-75' | Thêm Researcher, Analyst, Writer | `agents/*.py`, `core/state.py` |
-| 75-95' | Trace + benchmark single vs multi | `observability/tracing.py`, `evaluation/benchmark.py` |
-| 95-115' | Peer review theo rubric | `docs/peer_review_rubric.md` |
-| 115-120' | Exit ticket | `docs/lab_guide.md` |
-
-## Quy ước production trong repo
-
-- Tách rõ `agents`, `services`, `core`, `graph`, `evaluation`, `observability`.
-- Không hard-code API key trong code.
-- Tất cả input/output chính dùng Pydantic schema.
-- Có type hints, linting, formatting, unit test tối thiểu.
-- Có logging/tracing hook ngay từ đầu.
-- Không để agent chạy vô hạn: dùng `max_iterations`, `timeout_seconds`.
-- Có benchmark report thay vì chỉ demo output đẹp.
-
-## TODO chính cho học viên
-
-Tìm trong code các marker:
-
-```bash
-grep -R "TODO(student)" -n src tests docs
+```text
+researcher -> analyst -> writer -> done
 ```
 
-Các phần học viên cần tự làm:
+### 6. Generate Benchmark Deliverables
 
-1. Implement LLM client.
-2. Implement web/search client hoặc mock search source.
-3. Implement routing decision trong Supervisor.
-4. Implement từng worker agent.
-5. Build LangGraph workflow.
-6. Thêm tracing provider thật: LangSmith, Langfuse hoặc OpenTelemetry.
-7. Viết benchmark report.
+```bash
+python -m multi_agent_research_lab.cli benchmark \
+  --query "Research GraphRAG state-of-the-art and write a 500-word summary"
+```
+
+Generated artifacts:
+
+- `reports/benchmark_report.md`
+- `reports/traces/baseline.json`
+- `reports/traces/multi_agent.json`
+
+### 7. Benchmark All Prompts In `Question.md`
+
+```bash
+python -m multi_agent_research_lab.cli benchmark-questions --file Question.md
+```
+
+Generated artifacts:
+
+- `reports/question_benchmark_report.md`
+- `reports/traces/questions/*_baseline.json`
+- `reports/traces/questions/*_multi_agent.json`
+
+## Implementation Summary
+
+| Requirement | Status |
+|---|---|
+| Implement LLM client | Done: Gemini via `google-genai` |
+| Implement search client | Done: Tavily with local fallback |
+| Implement Supervisor routing | Done |
+| Implement Researcher, Analyst, Writer | Done |
+| Build workflow | Done: lightweight deterministic runner |
+| Add tracing | Done: local state trace and JSON export |
+| Write benchmark report | Done via `benchmark` CLI |
+| Evaluate `Question.md` prompts | Done via `benchmark-questions` CLI |
+
+## Production Conventions
+
+- `agents`, `services`, `core`, `graph`, `evaluation`, and `observability` are separated.
+- Input/output data uses Pydantic schemas.
+- API keys are read from `.env`.
+- Workflow is guarded by `MAX_ITERATIONS` and provider timeouts.
+- Search and LLM failures have fallbacks so the workflow can finish and record the issue.
+- Benchmark artifacts are written under `reports/`.
 
 ## Deliverables
 
-Học viên nộp:
+Submit:
 
-1. GitHub repo cá nhân.
-2. Screenshot trace hoặc link trace.
-3. `reports/benchmark_report.md` so sánh single vs multi-agent.
-4. Một đoạn giải thích failure mode và cách fix.
+1. Personal GitHub repo.
+2. Screenshot of CLI trace output or the exported JSON trace files.
+3. `reports/benchmark_report.md`.
+4. Failure mode explanation from `reports/benchmark_report.md` or `docs/design_template.md`.
+
+## Failure Mode
+
+During live testing, Gemini occasionally disconnected before sending a response. The fix wraps SDK/network exceptions in the LLM client and lets agents fall back to the best available intermediate state. Tavily search also has a local fallback so the workflow remains demonstrable when search is unavailable.
 
 ## References
 
 - Anthropic: Building effective agents — https://www.anthropic.com/engineering/building-effective-agents
-- OpenAI Agents SDK orchestration/handoffs — https://developers.openai.com/api/docs/guides/agents/orchestration
 - LangGraph concepts — https://langchain-ai.github.io/langgraph/concepts/
 - LangSmith tracing — https://docs.smith.langchain.com/
 - Langfuse tracing — https://langfuse.com/docs
